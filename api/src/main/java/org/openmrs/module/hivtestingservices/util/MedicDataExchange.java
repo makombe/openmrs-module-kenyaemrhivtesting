@@ -1,8 +1,10 @@
 package org.openmrs.module.hivtestingservices.util;
 
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
+import org.codehaus.jackson.node.ValueNode;
 import org.openmrs.Form;
 import org.openmrs.Location;
 import org.openmrs.Provider;
@@ -16,6 +18,9 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class MedicDataExchange {
     HTSService htsService = Context.getService(HTSService.class);
@@ -31,7 +36,11 @@ public class MedicDataExchange {
     public String processIncomingMedicDataQueue(String resultPayload) {
         Integer statusCode;
         String statusMsg;
+        String json = null;
         ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNodes = null;
+
+
         ObjectNode jsonNode = null;
         try {
             jsonNode = (ObjectNode) mapper.readTree(resultPayload);
@@ -40,13 +49,18 @@ public class MedicDataExchange {
             e.printStackTrace();
         }
         if (jsonNode != null) {
-            String discriminator = jsonNode.path("discriminator").path("discriminator").getTextValue();
-            String formDataUuid = jsonNode.path("encounter").path("encounter.form_uuid").getTextValue();
-            String patientUuid = jsonNode.path("patient").path("patient.uuid").getTextValue();
-            Integer locationId = Integer.parseInt(jsonNode.path("encounter").path("encounter.location_id").getTextValue());
-            String providerString = jsonNode.path("encounter").path("encounter.provider_id").getTextValue();
 
-            saveMedicDataQueue(resultPayload,locationId,providerString,patientUuid,discriminator,formDataUuid);
+            ObjectNode formNode =  processFormsPayload(jsonNode);
+            String payload = formNode.toString();
+
+
+            String discriminator = formNode.path("discriminator").path("discriminator").getTextValue();
+            String formDataUuid = formNode.path("encounter").path("encounter.form_uuid").getTextValue();
+            String patientUuid = formNode.path("patient").path("patient.uuid").getTextValue();
+            Integer locationId = Integer.parseInt(formNode.path("encounter").path("encounter.location_id").getTextValue());
+            String providerString = formNode.path("encounter").path("encounter.provider_id").getTextValue();
+
+            saveMedicDataQueue(payload,locationId,providerString,patientUuid,discriminator,formDataUuid);
 
         }
         return "Data queue created successfully";
@@ -74,6 +88,35 @@ public class MedicDataExchange {
 
         }
         return "Data queue registration created successfully";
+    }
+
+
+   /* public void testCreatingKeyValues() {
+        Map<String, Object> map = new HashMap<String, Object>();
+        try {
+            addKeys("", new ObjectMapper().readTree(json), map);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println(map);
+    }*/
+
+    private void addKeys(String currentPath, JsonNode jsonNode, Map<String, Object> map) {
+        if (jsonNode.isObject()) {
+            ObjectNode objectNode = (ObjectNode) jsonNode;
+            Iterator<Map.Entry<String, JsonNode>> iter = objectNode.getFields();
+            String pathPrefix = currentPath.isEmpty() ? "" : currentPath + ".";
+
+            while (iter.hasNext()) {
+                Map.Entry<String, JsonNode> entry = iter.next();
+                addKeys( entry.getKey(), entry.getValue(), map);
+            }
+        }
+
+        else if (jsonNode.isValueNode()) {
+            ValueNode valueNode = (ValueNode) jsonNode;
+            map.put(currentPath, valueNode.getValueAsText());
+        }
     }
 
 
@@ -161,6 +204,77 @@ public class MedicDataExchange {
         registrationWrapper.put("encounter",encounter);
 
         return registrationWrapper;
+    }
+
+    private ObjectNode processFormsPayload (ObjectNode jsonNode) {
+        ObjectNode formsNode = JsonNodeFactory.instance.objectNode();
+        ObjectNode discriminator = JsonNodeFactory.instance.objectNode();
+        ObjectNode encounter = JsonNodeFactory.instance.objectNode();
+        ObjectNode patientNode = JsonNodeFactory.instance.objectNode();
+
+
+
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode obsNodes = null;
+        //  System.out.println("jsonNode------>>>111"+jsonNode);
+        //  System.out.println("jsonNode===observation------>>>111"+jsonNode.path("fields").path("observation").toString());
+        String json = null;
+
+
+        Map<String, Object> map = new HashMap<String, Object>();
+        try {
+            addKeys("", new ObjectMapper().readTree(jsonNode.path("fields").path("observation").toString()), map);
+            json = new ObjectMapper().writeValueAsString(map);
+            if(json != null) {
+                obsNodes = (ObjectNode) mapper.readTree(json.replace("_","^"));
+
+
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        discriminator.put("discriminator","json-encounter");
+        encounter.put("encounter.location_id","7185");
+        encounter.put("encounter.provider_id_select","admin");
+        encounter.put("encounter.provider_id","admin");
+        encounter.put("encounter.encounter_datetime",convertTime(jsonNode.get("reported_date").getLongValue()));
+        encounter.put("encounter.form_uuid","402dc5d7-46da-42d4-b2be-f43ea4ad87b0");
+        encounter.put("encounter.user_system_id","admin");
+        encounter.put("encounter.device_time_zone","Africa\\/Nairobi");
+        encounter.put("encounter.setup_config_uuid","9c0a7a57-62ff-4f75-babe-5835b0e921b7");
+
+        patientNode.put("patient.uuid","a4de1e16-da72-11ea-87d0-0242ac130003");
+        patientNode.put("patient.family_name","Joo");
+        patientNode.put("patient.given_name","Joo");
+        patientNode.put("patient.middle_name","Joo");
+        patientNode.put("patient.sex",gender("female"));
+        patientNode.put("patient.birth_date","02-01-1989");
+        //1989-01-02
+
+        formsNode.put("patient", patientNode);
+        formsNode.put("observation", obsNodes);
+        formsNode.put("discriminator",discriminator);
+        formsNode.put("encounter",encounter);
+        for (JsonNode personNode : formsNode) {
+            if (personNode instanceof ObjectNode) {
+                ObjectNode object = (ObjectNode) personNode;
+                object.remove("test^1^note");
+                object.remove("test^2^note");
+            }
+        }
+        System.out.println("formsNode=====formsNode================"+ formsNode);
+
+
+
+
+
+
+        return   formsNode;
+
     }
 
     private String gender(String gender) {
