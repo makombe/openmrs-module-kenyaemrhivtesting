@@ -1,7 +1,9 @@
 package org.openmrs.module.hivtestingservices.util;
 
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.node.ValueNode;
@@ -17,10 +19,7 @@ import org.openmrs.module.hivtestingservices.model.DataSource;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 public class MedicDataExchange {
     HTSService htsService = Context.getService(HTSService.class);
@@ -89,36 +88,6 @@ public class MedicDataExchange {
         }
         return "Data queue registration created successfully";
     }
-
-
-   /* public void testCreatingKeyValues() {
-        Map<String, Object> map = new HashMap<String, Object>();
-        try {
-            addKeys("", new ObjectMapper().readTree(json), map);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println(map);
-    }*/
-
-    private void addKeys(String currentPath, JsonNode jsonNode, Map<String, Object> map) {
-        if (jsonNode.isObject()) {
-            ObjectNode objectNode = (ObjectNode) jsonNode;
-            Iterator<Map.Entry<String, JsonNode>> iter = objectNode.getFields();
-            String pathPrefix = currentPath.isEmpty() ? "" : currentPath + ".";
-
-            while (iter.hasNext()) {
-                Map.Entry<String, JsonNode> entry = iter.next();
-                addKeys( entry.getKey(), entry.getValue(), map);
-            }
-        }
-
-        else if (jsonNode.isValueNode()) {
-            ValueNode valueNode = (ValueNode) jsonNode;
-            map.put(currentPath, valueNode.getValueAsText());
-        }
-    }
-
 
     private void saveMedicDataQueue(String payload, Integer locationId, String providerString, String patientUuid, String discriminator,
                                     String formUuid) {
@@ -217,19 +186,13 @@ public class MedicDataExchange {
 
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode obsNodes = null;
-        //  System.out.println("jsonNode------>>>111"+jsonNode);
-        //  System.out.println("jsonNode===observation------>>>111"+jsonNode.path("fields").path("observation").toString());
+        ObjectNode jsonNodes = null;
         String json = null;
-
-
-        Map<String, Object> map = new HashMap<String, Object>();
         try {
-            addKeys("", new ObjectMapper().readTree(jsonNode.path("fields").path("observation").toString()), map);
-            json = new ObjectMapper().writeValueAsString(map);
+            jsonNodes = (ObjectNode) mapper.readTree(jsonNode.path("fields").path("observation").toString());
+            json = new ObjectMapper().writeValueAsString(jsonNodes);
             if(json != null) {
                 obsNodes = (ObjectNode) mapper.readTree(json.replace("_","^"));
-
-
             }
 
 
@@ -253,28 +216,38 @@ public class MedicDataExchange {
         patientNode.put("patient.middle_name","Joo");
         patientNode.put("patient.sex",gender("female"));
         patientNode.put("patient.birth_date","02-01-1989");
-        //1989-01-02
 
+
+        if(obsNodes != null){
+            Iterator<Map.Entry<String,JsonNode>> iterator = obsNodes.getFields();
+            while (iterator.hasNext()) {
+                Map.Entry<String, JsonNode> entry = iterator.next();
+                if(entry.getKey().contains("Multi")) {
+                    obsNodes.put(entry.getKey(), handleMultiSelectFields(entry.getValue().toString().replace(" ",",")));
+
+                }
+
+
+            }
+
+        }
         formsNode.put("patient", patientNode);
         formsNode.put("observation", obsNodes);
         formsNode.put("discriminator",discriminator);
         formsNode.put("encounter",encounter);
-        for (JsonNode personNode : formsNode) {
-            if (personNode instanceof ObjectNode) {
-                ObjectNode object = (ObjectNode) personNode;
-                object.remove("test^1^note");
-                object.remove("test^2^note");
-            }
-        }
-        System.out.println("formsNode=====formsNode================"+ formsNode);
-
-
-
-
-
 
         return   formsNode;
 
+    }
+
+    private ArrayNode handleMultiSelectFields(String listOfItems){
+        ArrayNode arrNode = JsonNodeFactory.instance.arrayNode();
+        if (listOfItems !=null) {
+            for (String s : listOfItems.split(",")) {
+                arrNode.add(s.substring(1,s.length()-1));
+            }
+        }
+        return arrNode;
     }
 
     private String gender(String gender) {
