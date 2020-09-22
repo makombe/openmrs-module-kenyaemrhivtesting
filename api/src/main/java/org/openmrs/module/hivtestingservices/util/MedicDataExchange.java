@@ -182,9 +182,9 @@ public class MedicDataExchange {
         htsService.saveQueData(medicQueData);
     }
 
-    private ObjectNode processRegistrationPayload (ObjectNode jNode) {
+    private ObjectNode processRegistrationPayload (ObjectNode jsonNode) {
 
-        ObjectNode jsonNode = (ObjectNode) jNode.get("registration");
+     //   ObjectNode jsonNode = (ObjectNode) jNode.get("registration");
         ObjectNode patientNode = getJsonNodeFactory().objectNode();
         ObjectNode obs = getJsonNodeFactory().objectNode();
         ObjectNode tmp = getJsonNodeFactory().objectNode();
@@ -326,8 +326,8 @@ public class MedicDataExchange {
         return   formsNode;
     }
 
-    private ObjectNode processPeerCalenderPayload (ObjectNode jNode) {
-        ObjectNode jsonNode = (ObjectNode) jNode.get("peerCalenderData");
+    private ObjectNode processPeerCalenderPayload (ObjectNode jsonNode) {
+      //  ObjectNode jsonNode = (ObjectNode) jNode.get("peerCalenderData");
         ObjectNode formsNode = JsonNodeFactory.instance.objectNode();
         ObjectNode discriminator = JsonNodeFactory.instance.objectNode();
         ObjectNode encounter = JsonNodeFactory.instance.objectNode();
