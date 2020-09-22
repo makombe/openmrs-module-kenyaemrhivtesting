@@ -21,6 +21,8 @@ import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.joda.time.DateTime;
+import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 import org.openmrs.Encounter;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.Patient;
@@ -37,6 +39,7 @@ import org.openmrs.VisitAttribute;
 import org.openmrs.annotation.Handler;
 import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
+import org.openmrs.api.ConceptService;
 import org.openmrs.api.context.Context;
 
 import org.openmrs.module.hivtestingservices.api.service.MuzimaFormService;
@@ -48,6 +51,8 @@ import org.openmrs.module.hivtestingservices.model.RegistrationData;
 import org.openmrs.module.hivtestingservices.model.handler.QueueDataHandler;
 import org.openmrs.module.hivtestingservices.utils.JsonUtils;
 import org.openmrs.module.hivtestingservices.utils.PatientSearchUtils;
+import org.openmrs.module.kenyaemr.metadata.CommonMetadata;
+import org.openmrs.module.kenyaemr.util.EmrUtils;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.stereotype.Component;
 
@@ -67,6 +72,9 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
 
     private static final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     private static final DateFormat dateTimeFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm");
+    public static final String peerCalendarFormUuid = "7492cffe-5874-4144-a1e6-c9e455472a35";
+    public static final String peerCalendarEncounterType = "c4f9db39-2c18-49a6-bf9b-b243d673c64d";
+
 
     private final Log log = LogFactory.getLog(JsonPeerCalenderEncounterQueueDataHandler.class);
 
@@ -75,6 +83,9 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
     private QueueProcessorException queueProcessorException;
 
     private Encounter encounter;
+    ConceptService cs = Context.getConceptService();
+    private Encounter lastPeerCalendarEncounter;
+
 
     /**
      *
@@ -88,15 +99,29 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
             log.info("Processing encounter form data: " + queueData.getUuid());
             encounter = new Encounter();
             String payload = queueData.getPayload();
+            updateEncounter(payload);
+            if(lastPeerCalendarEncounter != null) {
+                System.out.println("Last peer calender encounter exist");
+                //Object encounterObject = JsonUtils.readAsObject(queueData.getPayload(), "$['encounter']");
+              //  processEncounter(lastPeerCalendarEncounter, payload);
 
-            //Object encounterObject = JsonUtils.readAsObject(queueData.getPayload(), "$['encounter']");
-            processEncounter(encounter, payload);
+                //Object patientObject = JsonUtils.readAsObject(queueData.getPayload(), "$['patient']");
+               // processPatient(lastPeerCalendarEncounter, payload);
 
-            //Object patientObject = JsonUtils.readAsObject(queueData.getPayload(), "$['patient']");
-            processPatient(encounter, payload);
+                Object obsObject = JsonUtils.readAsObject(queueData.getPayload(), "$['observation']");
+                processObs(lastPeerCalendarEncounter, null, obsObject);
 
-            Object obsObject = JsonUtils.readAsObject(queueData.getPayload(), "$['observation']");
-            processObs(encounter, null, obsObject);
+            }else {
+
+                //Object encounterObject = JsonUtils.readAsObject(queueData.getPayload(), "$['encounter']");
+                processEncounter(encounter, payload);
+
+                //Object patientObject = JsonUtils.readAsObject(queueData.getPayload(), "$['patient']");
+                processPatient(encounter, payload);
+
+                Object obsObject = JsonUtils.readAsObject(queueData.getPayload(), "$['observation']");
+                processObs(encounter, null, obsObject);
+            }
 
             return true;
 
@@ -120,8 +145,13 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
 
         try {
             if (validate(queueData)) {
-                assignToVisit(encounter);
-                Context.getEncounterService().saveEncounter(encounter);
+                if(lastPeerCalendarEncounter !=null) {
+                    Context.getEncounterService().saveEncounter(lastPeerCalendarEncounter);
+
+                }else {
+                    assignToVisit(encounter);
+                    Context.getEncounterService().saveEncounter(encounter);
+                }
             }
         } catch (Exception e) {
             if (!e.getClass().equals(QueueProcessorException.class))
@@ -382,6 +412,72 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
         String jsonPayloadTimezone = JsonUtils.readAsString(encounterPayload, "$['encounter']['encounter.device_time_zone']");
         Date encounterDatetime = JsonUtils.readAsDateTime(encounterPayload, "$['encounter']['encounter.encounter_datetime']",dateTimeFormat,jsonPayloadTimezone);
         encounter.setEncounterDatetime(encounterDatetime);
+    }
+
+
+    private  void updateEncounter(final Object patientObject) {
+        String patientPayload = patientObject.toString();
+        String uuid = JsonUtils.readAsString(patientPayload, "$['patient']['patient.uuid']");
+        Patient patient = null;
+        String jsonPayloadTimezone = JsonUtils.readAsString(patientPayload, "$['encounter']['encounter.device_time_zone']");
+        Date currentEncounterDatetime = JsonUtils.readAsDateTime(patientPayload, "$['encounter']['encounter.encounter_datetime']",dateTimeFormat,jsonPayloadTimezone);
+        String hotSpotName = JsonUtils.readAsString(patientPayload, "$['observation']['_165006_hotspotName_99DCT']");
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(currentEncounterDatetime);
+        int currentMonthFromPayload = cal.get(Calendar.MONTH);
+        System.out.println("currentMonthFromPayload============="+currentMonthFromPayload);
+
+
+        RegistrationDataService regDataService = Context.getService(RegistrationDataService.class);
+        RegistrationData regData = regDataService.getRegistrationDataByTemporaryUuid(uuid);
+        if(regData != null) {
+            patient = Context.getPatientService().getPatientByUuid(regData.getAssignedUuid());
+        }
+
+        lastPeerCalendarEncounter = EmrUtils.lastEncounter(patient,
+                Context.getEncounterService().getEncounterTypeByUuid(peerCalendarEncounterType), Context
+                        .getFormService().getFormByUuid(peerCalendarFormUuid));
+        if(lastPeerCalendarEncounter !=null) {
+            Date datetime = lastPeerCalendarEncounter.getEncounterDatetime();
+            cal = Calendar.getInstance();
+            cal.setTime(datetime);
+            int lastMonthFilledForPeerCalendar = cal.get(Calendar.MONTH);           // .getMonth();
+            System.out.println("month============"+lastMonthFilledForPeerCalendar);
+            if(lastMonthFilledForPeerCalendar == currentMonthFromPayload) {
+                List<Obs> obsToSave = new ArrayList<Obs>();
+                List<Obs> obsToVoid = new ArrayList<Obs>();
+                //name of hotspot
+                int HOTSPOTName= 165006;
+                handlePatientObsToBeUpdated(patient, obsToSave, obsToVoid,cs.getConcept(HOTSPOTName) , hotSpotName);
+
+                for (Obs o : obsToSave) {
+
+                    lastPeerCalendarEncounter.addObs(o);
+                    Context.getEncounterService().saveEncounter(lastPeerCalendarEncounter);
+
+                }
+
+                System.out.println("The encounter needs to be updated");
+
+            }else {
+                System.out.println("You need to create a new encounter");
+            }
+        }
+
+    }
+
+    private void handlePatientObsToBeUpdated(Patient patient, List<Obs> obsToSave, List<Obs> obsToVoid, Concept question,
+                                              String newValue) {
+
+        if (newValue != null) {
+            Obs o = new Obs();
+            o.setPerson(patient);
+            o.setConcept(question);
+            o.setObsDatetime(new Date());
+            o.setValueText(newValue);
+            obsToSave.add(o);
+        }
+
     }
 
     /**

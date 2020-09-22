@@ -326,8 +326,8 @@ public class MedicDataExchange {
         return   formsNode;
     }
 
-    private ObjectNode processPeerCalenderPayload (ObjectNode jNode) {
-        ObjectNode jsonNode = (ObjectNode) jNode.get("peerCalenderData");
+    private ObjectNode processPeerCalenderPayload (ObjectNode jsonNode) {
+      //  ObjectNode jsonNode = (ObjectNode) jNode.get("peerCalenderData");
         ObjectNode formsNode = JsonNodeFactory.instance.objectNode();
         ObjectNode discriminator = JsonNodeFactory.instance.objectNode();
         ObjectNode encounter = JsonNodeFactory.instance.objectNode();
@@ -415,25 +415,40 @@ public class MedicDataExchange {
                             Iterator<Map.Entry<String,JsonNode>> obsGroupIterator = obsGroupNode.getFields();
                             while (obsGroupIterator.hasNext()) {
                                 Map.Entry<String, JsonNode> obsGroupEntry = obsGroupIterator.next();
-                                if(obsGroupEntry.getValue() ==null || "".equals(obsGroupEntry.getValue().toString()) ) {
-                                    keysToRemoveForObsGroup.add(obsGroupEntry.getKey());
-                                    if (keysToRemoveForObsGroup.size() > 0) {
+                                if(obsGroupEntry.getValue() ==null  ||
+                                        obsGroupEntry.getValue().getTextValue().equalsIgnoreCase(""))  {
+                                    System.out.println("obsGroupEntry.getKey()========"+obsGroupEntry.getKey());
+                                    try {
+                                        keysToRemoveForObsGroup.add(mapper.writeValueAsString(obsGroupEntry.getKey()));
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                  //  System.out.println("keysToRemoveForObsGroup================111111111"+keysToRemoveForObsGroup);
+
+                                   /* if (keysToRemoveForObsGroup.size() > 0) {
                                         for (String key : keysToRemoveForObsGroup) {
                                             obsGroupNode.remove(key);
                                         }
-                                    }
+                                    }*/
                                 }
                                 if(obsGroupEntry.getKey().contains("MULTISELECT")) {
-                                    if (obsGroupEntry.getValue() != null && !"".equals(obsGroupEntry.getValue().toString()) && !"".equals(obsGroupEntry.getValue().toString())) {
+                                    if (obsGroupEntry.getValue() != null && !"".equals(entry.getValue().toString())) {
                                         obsGroupNode.put(obsGroupEntry.getKey(), handleMultiSelectFields(obsGroupEntry.getValue().toString().replace(" ",",")));
                                         obsNodes.put(entry.getKey(),obsGroupNode);
+                                       // System.out.println("obsNodes========"+obsNodes);
                                     } else {
-                                        keysToRemoveForObsGroup.add(obsGroupEntry.getKey());
-                                        if (keysToRemoveForObsGroup.size() > 0) {
+                                       // System.out.println("obsGroupEntry.getKey()1111========="+obsGroupEntry.getKey());
+                                        try {
+                                            keysToRemoveForObsGroup.add(mapper.writeValueAsString(obsGroupEntry.getKey()));
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                      //  System.out.println("keysToRemoveForObsGroup================22222"+keysToRemoveForObsGroup);
+                                        /*if (keysToRemoveForObsGroup.size() > 0) {
                                             for (String key : keysToRemoveForObsGroup) {
                                                 obsGroupNode.remove(key);
                                             }
-                                        }
+                                        }*/
                                     }
                                 }
                             }
@@ -646,6 +661,34 @@ public class MedicDataExchange {
             systemUserName = superUser.getUsername();
         }
         return systemUserName;
+    }
+
+
+    private ObjectNode removeEmptyAndNullFields(ObjectNode jsonNode, List<String> keysToRemoveFromPayload) {
+
+        if (keysToRemoveFromPayload.size() > 0) {
+            for (String key : keysToRemoveFromPayload) {
+              //  System.out.println("Key===================="+key);
+                jsonNode.remove(key);
+            }
+        }
+
+      //  System.out.println("jsonNode============="+jsonNode);
+
+
+       /* Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.getFields();
+
+        while(fields.hasNext()) {
+            Map.Entry<String, JsonNode> field = fields.next();
+            String   fieldName  = field.getKey();
+            JsonNode fieldValue = field.getValue();
+            if(field.getValue().getTextValue().equalsIgnoreCase("")) {
+
+            }
+
+            System.out.println(fieldName + " = " + fieldValue.asText());
+        }*/
+        return  jsonNode;
     }
 
 
