@@ -444,18 +444,18 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
             int lastMonthFilledForPeerCalendar = cal.get(Calendar.MONTH);           // .getMonth();
             System.out.println("month============"+lastMonthFilledForPeerCalendar);
             if(lastMonthFilledForPeerCalendar == currentMonthFromPayload) {
-                List<Obs> obsToSave = new ArrayList<Obs>();
-                List<Obs> obsToVoid = new ArrayList<Obs>();
+               // List<Obs> obsToSave = new ArrayList<Obs>();
+               // List<Obs> obsToVoid = new ArrayList<Obs>();
                 //name of hotspot
                 int HOTSPOTName= 165006;
-                handlePatientObsToBeUpdated(patient, obsToSave, obsToVoid,cs.getConcept(HOTSPOTName) , hotSpotName);
+             //   handlePatientObsToBeUpdated(patient, obsToSave,cs.getConcept(HOTSPOTName) , hotSpotName);
 
-                for (Obs o : obsToSave) {
+                /*for (Obs o : obsToSave) {
 
                     lastPeerCalendarEncounter.addObs(o);
                     Context.getEncounterService().saveEncounter(lastPeerCalendarEncounter);
 
-                }
+                }*/
 
                 System.out.println("The encounter needs to be updated");
 
@@ -466,7 +466,7 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
 
     }
 
-    private void handlePatientObsToBeUpdated(Patient patient, List<Obs> obsToSave, List<Obs> obsToVoid, Concept question,
+    /*private void handlePatientObsToBeUpdated(Patient patient, List<Obs> obsToSave,  Concept question,
                                               String newValue) {
 
         if (newValue != null) {
@@ -478,7 +478,7 @@ public class JsonPeerCalenderEncounterQueueDataHandler implements QueueDataHandl
             obsToSave.add(o);
         }
 
-    }
+    }*/
 
     /**
      *
