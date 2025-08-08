@@ -3,7 +3,6 @@ package org.openmrs.module.hivtestingservices.reporting.data.patientContact.eval
 import org.openmrs.annotation.Handler;
 import org.openmrs.module.hivtestingservices.reporting.data.patientContact.EvaluatedPatientContactData;
 import org.openmrs.module.hivtestingservices.reporting.data.patientContact.definition.PatientContactDataDefinition;
-import org.openmrs.module.hivtestingservices.reporting.data.patientContact.definition.RelatedPatientKeyOrPriorityPopulationDataDefinition;
 import org.openmrs.module.hivtestingservices.reporting.data.patientContact.definition.RelatedPatientPopulationTypeDataDefinition;
 import org.openmrs.module.reporting.evaluation.EvaluationContext;
 import org.openmrs.module.reporting.evaluation.EvaluationException;
@@ -25,7 +24,7 @@ public class RelatedPatientPopulationTypeDataEvaluator implements PatientContact
     public EvaluatedPatientContactData evaluate(PatientContactDataDefinition definition, EvaluationContext context) throws EvaluationException {
         EvaluatedPatientContactData c = new EvaluatedPatientContactData(definition, context);
 
-        String qry = "select c.patient_id, if(t.population_type='Key Population', key_population_type, 'NA') as isKeyPop\n" +
+        String qry = "select c.patient_id, if(t.population_type='Key Population', t.key_population_type, t.population_type) as pop_type\n" +
                 "from kenyaemr_etl.etl_patient_contact c inner join kenyaemr_etl.etl_hts_test t on t.patient_id=c.patient_related_to where c.voided = 0; ";
 
         SqlQueryBuilder queryBuilder = new SqlQueryBuilder();

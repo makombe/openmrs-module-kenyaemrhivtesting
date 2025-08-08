@@ -3,7 +3,6 @@ package org.openmrs.module.hivtestingservices.reporting.data.patientContact.eval
 import org.openmrs.annotation.Handler;
 import org.openmrs.module.hivtestingservices.reporting.data.patientContact.EvaluatedPatientContactData;
 import org.openmrs.module.hivtestingservices.reporting.data.patientContact.definition.PatientContactDataDefinition;
-import org.openmrs.module.hivtestingservices.reporting.data.patientContact.definition.PatientContactNameDataDefinition;
 import org.openmrs.module.hivtestingservices.reporting.data.patientContact.definition.PatientContactRelationshipDataDefinition;
 import org.openmrs.module.reporting.evaluation.EvaluationContext;
 import org.openmrs.module.reporting.evaluation.EvaluationException;
@@ -26,16 +25,18 @@ public class PatientContactRelationshipDataEvaluator implements PatientContactDa
         EvaluatedPatientContactData c = new EvaluatedPatientContactData(definition, context);
 
         String qry = "select patient_id, (CASE relationship_type\n" +
-                "\tWHEN 970 THEN  'Mother'\n" +
-                "WHEN 971 THEN  'Father'\n" +
-                "WHEN 972 THEN 'Sibling'\n" +
-                "WHEN 1528 THEN 'Child'\n" +
-                "WHEN 5617 THEN 'Spouse'\n" +
-                "WHEN 163565 THEN 'Partner'\n" +
-                "WHEN 162221 THEN 'Co-wife' \n" +
-                "WHEN 166606 THEN 'SNS' \n" +
-                "ELSE '' END\n" +
-                ") relationship from kenyaemr_etl.etl_patient_contact c where c.voided = 0; ";
+                "           WHEN 2 THEN 'Sibling'\n" +
+                "           WHEN 3 THEN 'Child'\n" +
+                "           WHEN 4 THEN 'Niece/Nephew'\n" +
+                "           WHEN 5 THEN 'Dependant'\n" +
+                "           WHEN 6 THEN 'Spouse'\n" +
+                "           WHEN 7 THEN 'Partner'\n" +
+                "           WHEN 8 THEN 'Co-wife' \n" +
+                "           WHEN 9 THEN 'Injectable-druguser' \n" +
+                "           WHEN 10 THEN 'Care-giver' \n" +
+                "           WHEN 12 THEN 'SNS' \n" +
+                "           ELSE '' END\n" +
+                "           ) relationship from kenyaemr_etl.etl_patient_contact c where c.voided = 0; ";
 
         SqlQueryBuilder queryBuilder = new SqlQueryBuilder();
         queryBuilder.append(qry);
