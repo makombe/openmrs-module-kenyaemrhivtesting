@@ -15,6 +15,8 @@
 package org.openmrs.module.hivtestingservices.metadata;
 
 import org.openmrs.PatientIdentifierType;
+import org.openmrs.api.AdministrationService;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.metadatadeploy.bundle.AbstractMetadataBundle;
 import org.springframework.stereotype.Component;
 import static org.openmrs.module.metadatadeploy.bundle.CoreConstructors.patientIdentifierType;
@@ -29,6 +31,8 @@ import static org.openmrs.module.metadatadeploy.bundle.CoreConstructors.relation
 public class HTSMetadata extends AbstractMetadataBundle {
 
 	public static final String MODULE_ID = "hivtestingservices";
+	public static final String GP_ENABLE_FORMS = "kenyaemr.enable.forms";
+
 
 	public static final class _EncounterType {
 		public static final String HTS = "9c0a7a57-62ff-4f75-babe-5835b0e921b7";
@@ -53,8 +57,11 @@ public class HTSMetadata extends AbstractMetadataBundle {
 	public void install() throws Exception {
 		// doing this in the scheduled task so that previous value set is preserved
 		//install(globalProperty(MODULE_ID +".contactListingMigrationChore", "Migrates contact previously listed using family history form", "false"));
-		install(form("HTS Eligibility Screening Form", "Form used to screen clients prior to HIV testing", _EncounterType.HTS, "1", _Form.HTS_SCREENING_FORM));
-		install(form("HTS Provider Reports form", "Form used to develop provider reports", _EncounterType.HTS, "1", _Form.HTS_PROVIDER_REPORTS));
+		boolean installForms = shouldInstallForms();
+		if(installForms) {
+			install(form("HTS Eligibility Screening Form", "Form used to screen clients prior to HIV testing", _EncounterType.HTS, "1", _Form.HTS_SCREENING_FORM));
+			install(form("HTS Provider Reports form", "Form used to develop provider reports", _EncounterType.HTS, "1", _Form.HTS_PROVIDER_REPORTS));
+		}
 		install(relationshipType("Guardian", "Dependant", "One that guards, watches over, or protects", _RelationshipType.GUARDIAN_DEPENDANT));
 		install(relationshipType("Spouse", "Spouse", "A spouse is a partner in a marriage, civil union, domestic partnership or common-law marriage a male spouse is a husband and a female spouse is a wife", _RelationshipType.SPOUSE));
 		install(relationshipType("Partner", "Partner", "Someone I had sex with for fun without commitment to a relationship", _RelationshipType.PARTNER));
@@ -64,6 +71,16 @@ public class HTSMetadata extends AbstractMetadataBundle {
 		install(patientIdentifierType("CHT Record Reference UUID", "Record reference UUID from CHT",
 				null, null, null,
 				PatientIdentifierType.LocationBehavior.NOT_USED, false, _PatientIdentifierType.CHT_RECORD_UUID));
+	}
+
+	private boolean shouldInstallForms() {
+		AdministrationService administrationService = Context.getAdministrationService();
+		org.openmrs.GlobalProperty gp = administrationService.getGlobalPropertyObject(GP_ENABLE_FORMS);
+		if (gp == null || gp.getPropertyValue() == null) {
+			// Default to true if property doesn't exist (backward compatibility)
+			return true;
+		}
+		return gp.getPropertyValue().trim().equalsIgnoreCase("true");
 	}
 
 }
